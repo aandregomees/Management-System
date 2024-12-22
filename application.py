@@ -1,8 +1,6 @@
 import sqlite3
-import os
 import tkinter as tk
 from tkinter import messagebox
-
 
 def initialize_database():
     conn = sqlite3.connect("inventory.db")
@@ -18,7 +16,6 @@ def initialize_database():
     conn.commit()
     conn.close()
 
-
 # Database operations
 def add_product_with_id(product_id, name, category, brand, price, quantity):
     conn = sqlite3.connect("inventory.db")
@@ -30,7 +27,6 @@ def add_product_with_id(product_id, name, category, brand, price, quantity):
     except sqlite3.IntegrityError:
         messagebox.showerror("Error", "Product ID already exists")
     conn.close()
-
 
 def update_quantity(product_id, amount):
     conn = sqlite3.connect("inventory.db")
@@ -48,7 +44,6 @@ def update_quantity(product_id, amount):
         messagebox.showerror("Error", "Product not found")
     conn.close()
 
-
 def check_stock(product_id):
     conn = sqlite3.connect("inventory.db")
     cursor = conn.cursor()
@@ -56,7 +51,6 @@ def check_stock(product_id):
     result = cursor.fetchone()
     conn.close()
     return result
-
 
 def get_all_products(order_by="brand"):
     conn = sqlite3.connect("inventory.db")
@@ -66,90 +60,111 @@ def get_all_products(order_by="brand"):
     conn.close()
     return results
 
-
 def new_order_ui():
-    order_products = []  # List to store products in the current order
-    
-    def add_product_to_order():
+    order_items = []
+    order_frame = tk.Frame(content_frame)
+    order_frame.pack(fill=tk.BOTH, expand=True)
+
+    def add_product():
         product_id = id_entry.get()
         quantity = quantity_entry.get()
+        
         if product_id.isdigit() and quantity.isdigit():
-            product_id = int(product_id)
             quantity = int(quantity)
             if quantity > 0:
-                result = check_stock(product_id)
+                result = check_stock(int(product_id))
                 if result:
-                    name, stock_quantity = result
-                    if stock_quantity < quantity:
-                        messagebox.showerror("Error", f"Insufficient stock for {name} (ID: {product_id})")
+                    name, available_quantity = result
+                    if available_quantity >= quantity:
+                        order_items.append((product_id, quantity))
+                        order_listbox.insert(tk.END, f"ID: {product_id}, Quantity: {quantity}")
                     else:
-                        order_products.append((product_id, quantity))  # Add product to the order
-                        order_listbox.insert(tk.END, f"{name} (ID: {product_id}) - Quantity: {quantity}")
+                        messagebox.showerror("Error", "Insufficient stock")
                 else:
-                    messagebox.showerror("Error", f"Product not found (ID: {product_id})")
+                    messagebox.showerror("Error", "Product not found")
             else:
                 messagebox.showerror("Error", "Quantity must be greater than zero")
         else:
             messagebox.showerror("Error", "Invalid input")
-
+    
     def submit_order():
-        if not order_products:
-            messagebox.showerror("Error", "No products in the order")
-            return
+        for product_id, quantity in order_items:
+            update_quantity(int(product_id), -quantity)  # Decrease the specified quantity
+        messagebox.showinfo("Success", "Order has been processed")
+        order_frame.destroy()  # Close the current order frame
 
-        for product_id, quantity in order_products:
-            update_quantity(product_id, -quantity)  # Decrease the specified quantity
+    # Increase the width of the entries and buttons
+    tk.Label(order_frame, text="Product ID:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+    id_entry = tk.Entry(order_frame, width=40)  # Increase width here
+    id_entry.grid(row=0, column=0, padx=70, pady=5)
 
-        messagebox.showinfo("Success", "Order processed successfully")
-        new_order_window.destroy()
+    tk.Label(order_frame, text="Quantity:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+    quantity_entry = tk.Entry(order_frame, width=40)  # Increase width here
+    quantity_entry.grid(row=1, column=0, padx=70, pady=5)
 
-    new_order_window = tk.Toplevel(root)
-    new_order_window.title("New Order")
+    tk.Button(order_frame, text="Add Product to Order", command=add_product).grid(row=2, column=0, columnspan=2, pady=10)
 
-    tk.Label(new_order_window, text="Product ID:").grid(row=0, column=0)
-    id_entry = tk.Entry(new_order_window)
-    id_entry.grid(row=0, column=1)
+    tk.Button(order_frame, text="Submit Order", command=submit_order).grid(row=3, column=0, columnspan=2, pady=10)
 
-    tk.Label(new_order_window, text="Quantity:").grid(row=1, column=0)
-    quantity_entry = tk.Entry(new_order_window)
-    quantity_entry.grid(row=1, column=1)
-
-    tk.Button(new_order_window, text="Add Product to Order", command=add_product_to_order).grid(row=2, column=0, columnspan=2)
-
-    # Listbox to show products in the current order
-    tk.Label(new_order_window, text="Products in Order:").grid(row=3, column=0, columnspan=2)
-    order_listbox = tk.Listbox(new_order_window, width=40, height=10)
-    order_listbox.grid(row=4, column=0, columnspan=2)
-
-    tk.Button(new_order_window, text="Submit Order", command=submit_order).grid(row=5, column=0, columnspan=2)
+    # Increased width for listbox to display more data in the new order section
+    order_listbox = tk.Listbox(order_frame, height=10, width=100)  # Increase width here
+    order_listbox.grid(row=4, column=0, columnspan=2, padx=10, pady=5)
 
 
+# New restock UI in the same window
 def new_restock_ui():
-    def submit():
+    restock_items = []
+    restock_frame = tk.Frame(content_frame)
+    restock_frame.pack(fill=tk.BOTH, expand=True)
+
+    def add_product():
         product_id = id_entry.get()
         quantity = quantity_entry.get()
+        
         if product_id.isdigit() and quantity.isdigit():
-            update_quantity(int(product_id), int(quantity))  # Add quantity
-            messagebox.showinfo("Success", "Product restocked")
-            new_restock_window.destroy()
+            quantity = int(quantity)
+            if quantity > 0:
+                result = check_stock(int(product_id))
+                if result:
+                    name, available_quantity = result
+                    # If the product exists, just add the quantity to restock
+                    restock_items.append((product_id, quantity))
+                    restock_listbox.insert(tk.END, f"ID: {product_id}, Quantity: {quantity}")
+                else:
+                    messagebox.showerror("Error", "Product not found")
+            else:
+                messagebox.showerror("Error", "Quantity must be greater than zero")
         else:
             messagebox.showerror("Error", "Invalid input")
+    
+    def submit_restock():
+        for product_id, quantity in restock_items:
+            update_quantity(int(product_id), quantity)  # Increase the specified quantity
+        messagebox.showinfo("Success", "Restock has been processed")
+        restock_frame.destroy()  # Close the current restock frame
 
-    new_restock_window = tk.Toplevel(root)
-    new_restock_window.title("New Restock")
+    # Increase the width of the entries and buttons
+    tk.Label(restock_frame, text="Product ID:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+    id_entry = tk.Entry(restock_frame, width=40)  # Increase width here
+    id_entry.grid(row=0, column=0, padx=70, pady=5)
 
-    tk.Label(new_restock_window, text="Product ID:").grid(row=0, column=0)
-    id_entry = tk.Entry(new_restock_window)
-    id_entry.grid(row=0, column=1)
+    tk.Label(restock_frame, text="Quantity to Add:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+    quantity_entry = tk.Entry(restock_frame, width=40)  # Increase width here
+    quantity_entry.grid(row=1, column=0, padx=70, pady=5)
 
-    tk.Label(new_restock_window, text="Quantity to Add:").grid(row=1, column=0)
-    quantity_entry = tk.Entry(new_restock_window)
-    quantity_entry.grid(row=1, column=1)
+    tk.Button(restock_frame, text="Add Product to Restock", command=add_product).grid(row=2, column=0, columnspan=2, pady=10)
 
-    tk.Button(new_restock_window, text="Submit", command=submit).grid(row=2, column=0, columnspan=2)
+    tk.Button(restock_frame, text="Submit Restock", command=submit_restock).grid(row=3, column=0, columnspan=2, pady=10)
 
+    # Increased width for listbox to display more data in the new restock section
+    restock_listbox = tk.Listbox(restock_frame, height=10, width=100)  # Increase width here
+    restock_listbox.grid(row=4, column=0, columnspan=2, padx=10, pady=5)
 
+# Manage products UI in the same window
 def manage_ui(option):
+    manage_frame = tk.Frame(content_frame)
+    manage_frame.pack(fill=tk.BOTH, expand=True)
+
     if option == "check_stock":
         def submit():
             product_id = id_entry.get()
@@ -160,18 +175,15 @@ def manage_ui(option):
                     messagebox.showinfo("Stock Information", f"Name: {name}\nQuantity: {quantity}")
                 else:
                     messagebox.showerror("Error", "Product not found")
-                manage_window.destroy()
+                manage_frame.destroy()
             else:
                 messagebox.showerror("Error", "Invalid input")
 
-        manage_window = tk.Toplevel(root)
-        manage_window.title("Check Stock")
-
-        tk.Label(manage_window, text="Product ID:").grid(row=0, column=0)
-        id_entry = tk.Entry(manage_window)
+        tk.Label(manage_frame, text="Product ID:").grid(row=0, column=0)
+        id_entry = tk.Entry(manage_frame)
         id_entry.grid(row=0, column=1)
 
-        tk.Button(manage_window, text="Submit", command=submit).grid(row=1, column=0, columnspan=2)
+        tk.Button(manage_frame, text="Submit", command=submit).grid(row=1, column=0, columnspan=2)
 
     elif option == "view_all":
         def refresh_table(order_by):
@@ -188,21 +200,25 @@ def manage_ui(option):
                 for j, value in enumerate(product):
                     tk.Label(table_frame, text=value if j != 4 else f"{value:.2f}").grid(row=i, column=j, padx=10, pady=5)
 
-        manage_window = tk.Toplevel(root)
-        manage_window.title("View All Products")
-
-        table_frame = tk.Frame(manage_window)
-        table_frame.pack()
-
-        button_frame = tk.Frame(manage_window)
-        button_frame.pack()
+        tk.Label(manage_frame, text="Sort by:").grid(row=0, column=0)
+        button_frame = tk.Frame(manage_frame)
+        button_frame.grid(row=0, column=1)
 
         sort_options = ["Category", "Brand", "Price"]
         for i, option in enumerate(sort_options):
             tk.Button(button_frame, text=f"Sort by {option}", command=lambda opt=option.lower(): refresh_table(opt)).grid(row=0, column=i)
 
+        table_frame = tk.Frame(manage_frame)
+        table_frame.grid(row=1, column=0, columnspan=2)
+
         refresh_table("brand")
 
+# Update the content section
+def update_content(content_function):
+    for widget in content_frame.winfo_children():
+        widget.destroy()
+
+    content_function()
 
 # Main application setup
 root = tk.Tk()
@@ -220,20 +236,20 @@ content_frame = tk.Frame(main_frame, bg="white")  # Second vertical section (con
 content_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
 # Create menu
-menu_button_new_order = tk.Button(menu_frame, text="New Order", command=lambda: new_order_ui())
+menu_button_new_order = tk.Button(menu_frame, text="New Order", command=lambda: update_content(new_order_ui))
 menu_button_new_order.pack(fill=tk.X)
 
-menu_button_new_restock = tk.Button(menu_frame, text="New Restock", command=lambda: new_restock_ui())
+menu_button_new_restock = tk.Button(menu_frame, text="New Restock", command=lambda: update_content(new_restock_ui))
 menu_button_new_restock.pack(fill=tk.X)
 
-menu_button_manage = tk.Button(menu_frame, text="Manage Products", command=lambda: manage_ui("check_stock"))
+menu_button_manage = tk.Button(menu_frame, text="Manage Products", command=lambda: update_content(lambda: manage_ui("view_all")))
 menu_button_manage.pack(fill=tk.X)
 
-menu_button_view_all = tk.Button(menu_frame, text="View All Products", command=lambda: manage_ui("view_all"))
+menu_button_view_all = tk.Button(menu_frame, text="View All Products", command=lambda: update_content(lambda: manage_ui("view_all")))
 menu_button_view_all.pack(fill=tk.X)
 
-# Initialize database
-initialize_database()
+# Show the "View All" section by default
+update_content(lambda: manage_ui("view_all"))
 
-# Run the app
+initialize_database()
 root.mainloop()
