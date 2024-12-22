@@ -21,13 +21,14 @@ def add_product_with_id(product_id, name, category, brand, price, quantity):
     conn = sqlite3.connect("inventory.db")
     cursor = conn.cursor()
     try:
+        # Round the price to two decimals before inserting
+        price = round(price, 2)
         cursor.execute("INSERT INTO products (id, name, category, brand, price, quantity) VALUES (?, ?, ?, ?, ?, ?)",
                        (product_id, name, category, brand, price, quantity))
         conn.commit()
     except sqlite3.IntegrityError:
         messagebox.showerror("Error", "Product ID already exists")
     conn.close()
-
 # Function for "Create New Product" UI
 def new_product_ui():
     # Clear the current content
@@ -76,8 +77,11 @@ def new_product_ui():
             messagebox.showerror("Invalid Input", "Please enter valid values for Product ID, Price, and Quantity.")
             return
         
+        # Round the price to two decimal places
+        price = round(float(price), 2)
+        
         # Add the product to the database
-        add_product_with_id(product_id, product_name, category, brand, float(price), int(quantity))
+        add_product_with_id(product_id, product_name, category, brand, price, int(quantity))
         
         # Confirmation message
         tk.Label(new_product_frame, text="Product successfully added!").grid(row=6, column=0, columnspan=2, pady=10)
@@ -374,11 +378,19 @@ def edit_product_ui():
         price = price_entry.get()
         
         # Validation for the fields
-        if not product_name or not category or not brand or not price.isdigit():
+        if not product_name or not category or not brand or not price:
             messagebox.showerror("Invalid Input", "Please provide valid product details.")
             return
         
-        price = float(price)  # Convert price to float
+        # Validate if the price is a valid float
+        try:
+            price = float(price)
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Please provide a valid price.")
+            return
+        
+        # Round the price to two decimal places
+        price = round(price, 2)
         
         # Save the edited product (excluding quantity)
         update_product(product_id, product_name, category, brand, price)  # Function to update product in DB
@@ -387,7 +399,6 @@ def edit_product_ui():
         tk.Label(edit_product_frame, text="Product successfully updated!").grid(row=7, column=0, columnspan=2, pady=10)
 
     tk.Button(edit_product_frame, text="Update Product", command=submit_edited_product).grid(row=7, column=0, columnspan=2, pady=10)
-
 
 # Function to update the product in the database (excluding quantity)
 def update_product(product_id, product_name, category, brand, price):
