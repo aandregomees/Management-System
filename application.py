@@ -68,19 +68,40 @@ def get_all_products(order_by="brand"):
 
 
 def new_order_ui():
-    def submit():
+    order_products = []  # List to store products in the current order
+    
+    def add_product_to_order():
         product_id = id_entry.get()
         quantity = quantity_entry.get()
         if product_id.isdigit() and quantity.isdigit():
+            product_id = int(product_id)
             quantity = int(quantity)
             if quantity > 0:
-                update_quantity(int(product_id), -quantity)  # Decrease the specified quantity
-                messagebox.showinfo("Success", f"Product quantity decreased by {quantity}")
-                new_order_window.destroy()
+                result = check_stock(product_id)
+                if result:
+                    name, stock_quantity = result
+                    if stock_quantity < quantity:
+                        messagebox.showerror("Error", f"Insufficient stock for {name} (ID: {product_id})")
+                    else:
+                        order_products.append((product_id, quantity))  # Add product to the order
+                        order_listbox.insert(tk.END, f"{name} (ID: {product_id}) - Quantity: {quantity}")
+                else:
+                    messagebox.showerror("Error", f"Product not found (ID: {product_id})")
             else:
                 messagebox.showerror("Error", "Quantity must be greater than zero")
         else:
             messagebox.showerror("Error", "Invalid input")
+
+    def submit_order():
+        if not order_products:
+            messagebox.showerror("Error", "No products in the order")
+            return
+
+        for product_id, quantity in order_products:
+            update_quantity(product_id, -quantity)  # Decrease the specified quantity
+
+        messagebox.showinfo("Success", "Order processed successfully")
+        new_order_window.destroy()
 
     new_order_window = tk.Toplevel(root)
     new_order_window.title("New Order")
@@ -89,11 +110,18 @@ def new_order_ui():
     id_entry = tk.Entry(new_order_window)
     id_entry.grid(row=0, column=1)
 
-    tk.Label(new_order_window, text="Quantity to Remove:").grid(row=1, column=0)
+    tk.Label(new_order_window, text="Quantity:").grid(row=1, column=0)
     quantity_entry = tk.Entry(new_order_window)
     quantity_entry.grid(row=1, column=1)
 
-    tk.Button(new_order_window, text="Submit", command=submit).grid(row=2, column=0, columnspan=2)
+    tk.Button(new_order_window, text="Add Product to Order", command=add_product_to_order).grid(row=2, column=0, columnspan=2)
+
+    # Listbox to show products in the current order
+    tk.Label(new_order_window, text="Products in Order:").grid(row=3, column=0, columnspan=2)
+    order_listbox = tk.Listbox(new_order_window, width=40, height=10)
+    order_listbox.grid(row=4, column=0, columnspan=2)
+
+    tk.Button(new_order_window, text="Submit Order", command=submit_order).grid(row=5, column=0, columnspan=2)
 
 
 def new_restock_ui():
@@ -198,11 +226,14 @@ menu_button_new_order.pack(fill=tk.X)
 menu_button_new_restock = tk.Button(menu_frame, text="New Restock", command=lambda: new_restock_ui())
 menu_button_new_restock.pack(fill=tk.X)
 
-menu_button_manage = tk.Button(menu_frame, text="Manage", command=lambda: manage_ui("view_all"))
+menu_button_manage = tk.Button(menu_frame, text="Manage Products", command=lambda: manage_ui("check_stock"))
 menu_button_manage.pack(fill=tk.X)
 
-# Show the "View All" section by default
-manage_ui("view_all")
+menu_button_view_all = tk.Button(menu_frame, text="View All Products", command=lambda: manage_ui("view_all"))
+menu_button_view_all.pack(fill=tk.X)
 
+# Initialize database
 initialize_database()
+
+# Run the app
 root.mainloop()
