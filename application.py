@@ -218,24 +218,95 @@ def new_restock_ui():
     restock_listbox = tk.Listbox(restock_frame, height=10, width=100)
     restock_listbox.grid(row=4, column=0, columnspan=2, padx=10, pady=5)
 
-# View all products UI
 def view_all_products_ui():
     clear_content_area()
-    products_frame = tk.Frame(content_frame)
+
+    # State variables
+    current_sort = tk.StringVar(value="brand")  # Default sort order
+    current_page = tk.IntVar(value=0)  # Current page index
+    items_per_page = 26  # Items per page
+
+    # Frame for the entire view
+    products_frame = tk.Frame(content_frame, width=1200, height=780)
     products_frame.pack(fill=tk.BOTH, expand=True)
 
-    products = get_all_products()
+    # Left frame for sort buttons
+    sort_frame = tk.Frame(products_frame, width=200)
+    sort_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
 
-    tk.Label(products_frame, text="ID", width=10, anchor="w").grid(row=0, column=0, padx=10, pady=5)
-    tk.Label(products_frame, text="Name", width=20, anchor="w").grid(row=0, column=1, padx=10, pady=5)
-    tk.Label(products_frame, text="Category", width=20, anchor="w").grid(row=0, column=2, padx=10, pady=5)
-    tk.Label(products_frame, text="Brand", width=20, anchor="w").grid(row=0, column=3, padx=10, pady=5)
-    tk.Label(products_frame, text="Price", width=10, anchor="w").grid(row=0, column=4, padx=10, pady=5)
-    tk.Label(products_frame, text="Quantity", width=10, anchor="w").grid(row=0, column=5, padx=10, pady=5)
+    # Right frame for product display
+    display_frame = tk.Frame(products_frame, width=1000, height=780)
+    display_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
-    for i, product in enumerate(products, start=1):
-        for j, value in enumerate(product):
-            tk.Label(products_frame, text=value if j != 4 else f"{value:.2f}", width=20, anchor="w").grid(row=i, column=j, padx=10, pady=5)
+    # Inner frame for product details
+    inner_frame = tk.Frame(display_frame)
+    inner_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    # Function to fetch paginated products
+    def get_paginated_products(products, page, items_per_page):
+        start = page * items_per_page
+        end = start + items_per_page
+        return products[start:end]
+
+    # Function to populate products based on current sort and page
+    def populate_products():
+        # Fetch all products sorted by the current order
+        products = get_all_products(order_by=current_sort.get())
+        paginated_products = get_paginated_products(products, current_page.get(), items_per_page)
+
+        # Clear the display
+        for widget in inner_frame.winfo_children():
+            widget.destroy()
+
+        # Headers
+        tk.Label(inner_frame, text="ID", width=10, anchor="w").grid(row=0, column=0, padx=10, pady=5)
+        tk.Label(inner_frame, text="Name", width=20, anchor="w").grid(row=0, column=1, padx=10, pady=5)
+        tk.Label(inner_frame, text="Category", width=20, anchor="w").grid(row=0, column=2, padx=10, pady=5)
+        tk.Label(inner_frame, text="Brand", width=20, anchor="w").grid(row=0, column=3, padx=10, pady=5)
+        tk.Label(inner_frame, text="Price", width=10, anchor="w").grid(row=0, column=4, padx=10, pady=5)
+        tk.Label(inner_frame, text="Quantity", width=10, anchor="w").grid(row=0, column=5, padx=10, pady=5)
+
+        # Populate rows
+        for i, product in enumerate(paginated_products, start=1):
+            for j, value in enumerate(product):
+                tk.Label(inner_frame, text=value if j != 4 else f"{value:.2f}", width=15, anchor="w").grid(row=i, column=j, padx=10, pady=5)
+
+        # Add navigation buttons
+        navigation_frame = tk.Frame(inner_frame)
+        navigation_frame.grid(row=items_per_page + 2, column=0, columnspan=6, pady=10)
+
+        # Previous button
+        tk.Button(navigation_frame, text="Previous", command=lambda: navigate_page(-1)).pack(side=tk.LEFT, padx=5)
+        # Next button
+        tk.Button(navigation_frame, text="Next", command=lambda: navigate_page(1)).pack(side=tk.RIGHT, padx=5)
+
+        # Display current page info
+        tk.Label(navigation_frame, text=f"Page {current_page.get() + 1}").pack(side=tk.LEFT, padx=10)
+
+    # Navigation function for pagination
+    def navigate_page(direction):
+        products = get_all_products(order_by=current_sort.get())
+        total_pages = (len(products) - 1) // items_per_page + 1
+        new_page = current_page.get() + direction
+
+        if 0 <= new_page < total_pages:
+            current_page.set(new_page)
+            populate_products()
+
+    # Sort buttons
+    def sort_by(order_by):
+        current_sort.set(order_by)
+        current_page.set(0)  # Reset to the first page
+        populate_products()
+
+    tk.Button(sort_frame, text="Sort by ID", width=20, command=lambda: sort_by("id")).pack(pady=5)
+    tk.Button(sort_frame, text="Sort by Name", width=20, command=lambda: sort_by("name")).pack(pady=5)
+    tk.Button(sort_frame, text="Sort by Category", width=20, command=lambda: sort_by("category")).pack(pady=5)
+    tk.Button(sort_frame, text="Sort by Brand", width=20, command=lambda: sort_by("brand")).pack(pady=5)
+    tk.Button(sort_frame, text="Sort by Price", width=20, command=lambda: sort_by("price")).pack(pady=5)
+
+    # Initial population
+    populate_products()
 
 # Manage products UI (with Add, Edit, and Search options)
 def manage_ui():
@@ -262,45 +333,6 @@ def manage_ui():
             new_product_ui()  
 
     show_manage_options()
-
-def search_product_ui():
-    manage_frame = tk.Frame(content_frame)
-    manage_frame.pack(fill=tk.BOTH, expand=True)
-
-    def submit_search():
-        search_value = search_entry.get()
-        if search_value:
-            conn = sqlite3.connect("/home/agomes/Desktop/FisioMove/inventory.db")
-            cursor = conn.cursor()
-
-            if search_value.isdigit():  # Search by ID
-                cursor.execute("SELECT * FROM products WHERE id = ?", (search_value,))
-            else:  # Search by Name (or part of it)
-                cursor.execute("SELECT * FROM products WHERE name LIKE ? OR category LIKE ? OR brand LIKE ?",
-                               (f"%{search_value}%", f"%{search_value}%", f"%{search_value}%"))
-            
-            results = cursor.fetchall()
-            conn.close()
-
-            if results:
-                for widget in search_table.winfo_children():
-                    widget.destroy()
-                headers = ["ID", "Name", "Category", "Brand", "Price", "Quantity"]
-                for col, header in enumerate(headers):
-                    tk.Label(search_table, text=header).grid(row=0, column=col, padx=10, pady=5)
-                for i, product in enumerate(results, start=1):
-                    for j, value in enumerate(product):
-                        tk.Label(search_table, text=value if j != 4 else f"{value:.2f}").grid(row=i, column=j, padx=10, pady=5)
-            else:
-                messagebox.showinfo("No Results", "No products found matching your search.")
-
-    tk.Label(manage_frame, text="Search by ID, Name, Category, or Brand:").grid(row=0, column=0, padx=10, pady=5)
-    search_entry = tk.Entry(manage_frame)
-    search_entry.grid(row=0, column=1, padx=10, pady=5)
-    tk.Button(manage_frame, text="Search", command=submit_search).grid(row=0, column=2, padx=10, pady=5)
-
-    search_table = tk.Frame(manage_frame)
-    search_table.grid(row=1, column=0, columnspan=3, padx=10, pady=5)
 
 # Edit Product UI
 def edit_product_ui():
