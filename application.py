@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import messagebox
 
 def initialize_database():
-    conn = sqlite3.connect("inventory.db")
+    conn = sqlite3.connect("/home/agomes/Desktop/FisioMove/inventory.db")
     cursor = conn.cursor()
     cursor.execute('''CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY,
@@ -18,7 +18,7 @@ def initialize_database():
 
 # Function to add product to database
 def add_product_with_id(product_id, name, category, brand, price, quantity):
-    conn = sqlite3.connect("inventory.db")
+    conn = sqlite3.connect("/home/agomes/Desktop/FisioMove/inventory.db")
     cursor = conn.cursor()
     try:
         # Round the price to two decimals before inserting
@@ -90,7 +90,7 @@ def new_product_ui():
 
 
 def update_quantity(product_id, amount):
-    conn = sqlite3.connect("inventory.db")
+    conn = sqlite3.connect("/home/agomes/Desktop/FisioMove/inventory.db")
     cursor = conn.cursor()
     cursor.execute("SELECT quantity FROM products WHERE id = ?", (product_id,))
     result = cursor.fetchone()
@@ -106,7 +106,7 @@ def update_quantity(product_id, amount):
     conn.close()
 
 def check_stock(product_id):
-    conn = sqlite3.connect("inventory.db")
+    conn = sqlite3.connect("/home/agomes/Desktop/FisioMove/inventory.db")
     cursor = conn.cursor()
     cursor.execute("SELECT name, quantity FROM products WHERE id = ?", (product_id,))
     result = cursor.fetchone()
@@ -114,7 +114,7 @@ def check_stock(product_id):
     return result
 
 def get_all_products(order_by="brand"):
-    conn = sqlite3.connect("inventory.db")
+    conn = sqlite3.connect("/home/agomes/Desktop/FisioMove/inventory.db")
     cursor = conn.cursor()
     cursor.execute(f"SELECT id, name, category, brand, price, quantity FROM products ORDER BY {order_by}")
     results = cursor.fetchall()
@@ -270,7 +270,7 @@ def search_product_ui():
     def submit_search():
         search_value = search_entry.get()
         if search_value:
-            conn = sqlite3.connect("inventory.db")
+            conn = sqlite3.connect("/home/agomes/Desktop/FisioMove/inventory.db")
             cursor = conn.cursor()
 
             if search_value.isdigit():  # Search by ID
@@ -402,7 +402,7 @@ def edit_product_ui():
 
 # Function to update the product in the database (excluding quantity)
 def update_product(product_id, product_name, category, brand, price):
-    conn = sqlite3.connect("inventory.db")
+    conn = sqlite3.connect("/home/agomes/Desktop/FisioMove/inventory.db")
     cursor = conn.cursor()
     cursor.execute('''UPDATE products
                       SET name = ?, category = ?, brand = ?, price = ?
@@ -412,7 +412,7 @@ def update_product(product_id, product_name, category, brand, price):
 
 # Function to fetch a product by ID
 def get_product_by_id(product_id):
-    conn = sqlite3.connect("inventory.db")
+    conn = sqlite3.connect("/home/agomes/Desktop/FisioMove/inventory.db")
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM products WHERE id = ?", (product_id,))
     product = cursor.fetchone()  # Fetch one product by ID
