@@ -238,9 +238,18 @@ def view_all_products_ui():
     products_frame = tk.Frame(content_frame)
     products_frame.pack(fill=tk.BOTH, expand=True)
 
+    # Frame for sorting buttons
     sort_frame = tk.Frame(products_frame)
     sort_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
 
+    # Sorting buttons
+    tk.Button(sort_frame, text="Sort by ID", command=lambda: sort_by("id")).pack(pady=5)
+    tk.Button(sort_frame, text="Sort by Name", command=lambda: sort_by("name")).pack(pady=5)
+    tk.Button(sort_frame, text="Sort by Category", command=lambda: sort_by("category")).pack(pady=5)
+    tk.Button(sort_frame, text="Sort by Brand", command=lambda: sort_by("brand")).pack(pady=5)
+    tk.Button(sort_frame, text="Sort by Price", command=lambda: sort_by("price")).pack(pady=5)
+
+    # Frame for the product list
     inner_frame = tk.Frame(products_frame)
     inner_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
@@ -283,59 +292,6 @@ def view_all_products_ui():
         current_page.set(0)
         populate_products()
     
-    tk.Button(sort_frame, text="Sort by ID", command=lambda: sort_by("id")).pack(pady=5)
-    tk.Button(sort_frame, text="Sort by Name", command=lambda: sort_by("name")).pack(pady=5)
-    tk.Button(sort_frame, text="Sort by Category", command=lambda: sort_by("category")).pack(pady=5)
-    tk.Button(sort_frame, text="Sort by Brand", command=lambda: sort_by("brand")).pack(pady=5)
-    tk.Button(sort_frame, text="Sort by Price", command=lambda: sort_by("price")).pack(pady=5)
-
-    populate_products()
-    clear_content_area()
-    
-    current_sort = tk.StringVar(value="brand")  # Default sort order
-    current_page = tk.IntVar(value=0)  # Current page index
-    items_per_page = 20  # Items per page
-
-    products_frame = tk.Frame(content_frame)
-    products_frame.pack(fill=tk.BOTH, expand=True)
-
-    inner_frame = tk.Frame(products_frame)
-    inner_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-    def populate_products():
-        offset = current_page.get() * items_per_page
-        products = get_paginated_products(current_sort.get(), offset, items_per_page)
-
-        for widget in inner_frame.winfo_children():
-            widget.destroy()
-
-        headers = ["ID", "Name", "Category", "Brand", "Price", "Quantity"]
-        for i, header in enumerate(headers):
-            tk.Label(inner_frame, text=header, width=15, anchor="w").grid(row=0, column=i, padx=5, pady=5)
-
-        for i, product in enumerate(products, start=1):
-            for j, value in enumerate(product):
-                tk.Label(inner_frame, text=value if j != 4 else f"{value:.2f}", width=15, anchor="w").grid(row=i, column=j, padx=5, pady=5)
-
-        navigation_frame = tk.Frame(inner_frame)
-        navigation_frame.grid(row=items_per_page + 2, column=0, columnspan=6, pady=10)
-        
-        prev_button = tk.Button(navigation_frame, text="Previous", command=lambda: navigate_page(-1))
-        next_button = tk.Button(navigation_frame, text="Next", command=lambda: navigate_page(1))
-        
-        if current_page.get() > 0:
-            prev_button.pack(side=tk.LEFT, padx=5)
-        if len(products) == items_per_page:
-            next_button.pack(side=tk.RIGHT, padx=5)
-        
-        tk.Label(navigation_frame, text=f"Page {current_page.get() + 1}").pack(side=tk.LEFT, padx=10)
-
-    def navigate_page(direction):
-        new_page = current_page.get() + direction
-        if new_page >= 0:
-            current_page.set(new_page)
-            populate_products()
-
     populate_products()
 # Manage products UI (with Add, Edit, and Search options)
 def manage_ui():
