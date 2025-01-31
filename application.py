@@ -87,8 +87,79 @@ def new_product_ui():
         tk.Label(new_product_frame, text="Product successfully added!").grid(row=6, column=0, columnspan=2, pady=10)
 
     tk.Button(new_product_frame, text="Add Product", command=submit_new_product).grid(row=6, column=0, columnspan=2, pady=10)
+    
+def search_products(criteria, term):
+    conn = sqlite3.connect("/home/agomes/Desktop/FisioMove/inventory.db")
+    cursor = conn.cursor()
+    
+    # Construct the SQL query based on the search criteria
+    if criteria == "id":
+        cursor.execute("SELECT * FROM products WHERE id = ?", (term,))
+    elif criteria == "name":
+        cursor.execute("SELECT * FROM products WHERE name LIKE ?", (f"%{term}%",))
+    elif criteria == "category":
+        cursor.execute("SELECT * FROM products WHERE category LIKE ?", (f"%{term}%",))
+    elif criteria == "brand":
+        cursor.execute("SELECT * FROM products WHERE brand LIKE ?", (f"%{term}%",))
+    
+    results = cursor.fetchall()
+    conn.close()
+    return results
 
-
+def search_product_ui():
+    # Clear the current content
+    clear_content_area()
+    
+    # Create a frame for the search UI
+    search_frame = tk.Frame(content_frame)
+    search_frame.pack(pady=20)
+    
+    # Label and entry for search criteria
+    tk.Label(search_frame, text="Search by:").grid(row=0, column=0, pady=5)
+    search_criteria = tk.StringVar(value="id")  # Default search criteria
+    search_options = ["id", "name", "category", "brand"]
+    search_dropdown = tk.OptionMenu(search_frame, search_criteria, *search_options)
+    search_dropdown.grid(row=0, column=1, pady=5)
+    
+    tk.Label(search_frame, text="Search term:").grid(row=1, column=0, pady=5)
+    search_term_entry = tk.Entry(search_frame)
+    search_term_entry.grid(row=1, column=1, pady=5)
+    
+    # Frame to display search results
+    results_frame = tk.Frame(content_frame)
+    results_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+    
+    def perform_search():
+        # Clear previous results
+        for widget in results_frame.winfo_children():
+            widget.destroy()
+        
+        # Get the search criteria and term
+        criteria = search_criteria.get()
+        term = search_term_entry.get()
+        
+        if not term:
+            messagebox.showerror("Error", "Please enter a search term.")
+            return
+        
+        # Fetch products based on the search criteria
+        products = search_products(criteria, term)
+        
+        if not products:
+            tk.Label(results_frame, text="No products found.").pack(pady=10)
+            return
+        
+        # Display the search results
+        headers = ["ID", "Name", "Category", "Brand", "Price", "Quantity"]
+        for i, header in enumerate(headers):
+            tk.Label(results_frame, text=header, width=15, anchor="w").grid(row=0, column=i, padx=5, pady=5)
+        
+        for i, product in enumerate(products, start=1):
+            for j, value in enumerate(product):
+                tk.Label(results_frame, text=value if j != 4 else f"{value:.2f}", width=15, anchor="w").grid(row=i, column=j, padx=5, pady=5)
+    
+    # Button to perform the search
+    tk.Button(search_frame, text="Search", command=perform_search).grid(row=2, column=0, columnspan=2, pady=10)
 def update_quantity(product_id, amount):
     conn = sqlite3.connect("/home/agomes/Desktop/FisioMove/inventory.db")
     cursor = conn.cursor()
