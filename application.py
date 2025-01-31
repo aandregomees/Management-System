@@ -87,7 +87,7 @@ def new_product_ui():
         tk.Label(new_product_frame, text="Product successfully added!").grid(row=6, column=0, columnspan=2, pady=10)
 
     tk.Button(new_product_frame, text="Add Product", command=submit_new_product).grid(row=6, column=0, columnspan=2, pady=10)
-    
+
 def search_products(criteria, term):
     conn = sqlite3.connect("/home/agomes/Desktop/FisioMove/inventory.db")
     cursor = conn.cursor()
@@ -195,100 +195,205 @@ def get_all_products(order_by="brand"):
 # New order UI
 def new_order_ui():
     clear_content_area()
-    order_items = []
+    order_items = []  # List to store products added to the order
+
+    # Main frame for the order page
     order_frame = tk.Frame(content_frame)
     order_frame.pack(fill=tk.BOTH, expand=True)
 
-    def add_product():
-        product_id = id_entry.get()
-        quantity = quantity_entry.get()
-        
-        if product_id.isdigit() and quantity.isdigit():
-            quantity = int(quantity)
-            if quantity > 0:
-                result = check_stock(int(product_id))
-                if result:
-                    name, available_quantity = result
-                    if available_quantity >= quantity:
-                        order_items.append((product_id, quantity))
-                        order_listbox.insert(tk.END, f"ID: {product_id}, Quantity: {quantity}")
-                    else:
-                        messagebox.showerror("Error", "Insufficient stock")
-                else:
-                    messagebox.showerror("Error", "Product not found")
+    # Frame for the search bar
+    search_frame = tk.Frame(order_frame)
+    search_frame.pack(fill=tk.X, padx=10, pady=10)
+
+    # Search criteria dropdown
+    tk.Label(search_frame, text="Search by:").grid(row=0, column=0, padx=5, pady=5)
+    search_criteria = tk.StringVar(value="name")  # Default search criteria
+    search_options = ["id", "name", "category", "brand"]
+    search_dropdown = tk.OptionMenu(search_frame, search_criteria, *search_options)
+    search_dropdown.grid(row=0, column=1, padx=5, pady=5)
+
+    # Search term entry
+    tk.Label(search_frame, text="Search term:").grid(row=0, column=2, padx=5, pady=5)
+    search_term_entry = tk.Entry(search_frame, width=30)
+    search_term_entry.grid(row=0, column=3, padx=5, pady=5)
+
+    # Button to perform the search
+    def perform_search():
+        # Clear previous search results
+        for widget in results_frame.winfo_children():
+            widget.destroy()
+
+        # Get the search criteria and term
+        criteria = search_criteria.get()
+        term = search_term_entry.get()
+
+        if not term:
+            messagebox.showerror("Error", "Please enter a search term.")
+            return
+
+        # Fetch products based on the search criteria
+        products = search_products(criteria, term)
+
+        if not products:
+            tk.Label(results_frame, text="No products found.").pack(pady=10)
+            return
+
+        # Display the search results
+        for i, product in enumerate(products):
+            product_id, name, category, brand, price, quantity = product
+            product_text = f"{name}, Brand: {brand}, Price: {price:.2f}"
+            product_button = tk.Button(results_frame, text=product_text, width=80, anchor="w",
+                                       command=lambda p=product: add_to_order(p))
+            product_button.pack(pady=2, padx=10, anchor="w")
+
+    tk.Button(search_frame, text="Search", command=perform_search).grid(row=0, column=4, padx=5, pady=5)
+
+    # Frame to display search results
+    results_frame = tk.Frame(order_frame)
+    results_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    # Function to add a product to the order
+    def add_to_order(product):
+        product_id, name, _, _, _, _ = product
+
+        # Open a new window to input quantity
+        quantity_window = tk.Toplevel()
+        quantity_window.title("Add to Order")
+        quantity_window.geometry("300x150")
+
+        tk.Label(quantity_window, text=f"Product: {name}").pack(pady=10)
+        tk.Label(quantity_window, text="Quantity:").pack(pady=5)
+        quantity_entry = tk.Entry(quantity_window)
+        quantity_entry.pack(pady=5)
+
+        def confirm_quantity():
+            quantity = quantity_entry.get()
+            if quantity.isdigit() and int(quantity) > 0:
+                order_items.append((product_id, int(quantity)))
+                order_listbox.insert(tk.END, f"ID: {product_id}, Quantity: {quantity}")
+                quantity_window.destroy()
             else:
-                messagebox.showerror("Error", "Quantity must be greater than zero")
-        else:
-            messagebox.showerror("Error", "Invalid input")
-    
+                messagebox.showerror("Error", "Please enter a valid quantity.")
+
+        tk.Button(quantity_window, text="Add", command=confirm_quantity).pack(pady=10)
+
+    # Frame to display the current order
+    order_list_frame = tk.Frame(order_frame)
+    order_list_frame.pack(fill=tk.X, padx=10, pady=10)
+
+    tk.Label(order_list_frame, text="Current Order:").pack(anchor="w")
+    order_listbox = tk.Listbox(order_list_frame, height=10, width=100)
+    order_listbox.pack(fill=tk.X, pady=5)
+
+    # Button to submit the order
     def submit_order():
         for product_id, quantity in order_items:
-            update_quantity(int(product_id), -quantity)  # Decrease the specified quantity
-        messagebox.showinfo("Success", "Order has been processed")
+            update_quantity(int(product_id), -quantity)  # Decrease the quantity in the database
+        messagebox.showinfo("Success", "Order has been processed.")
         order_frame.destroy()  # Close the current order frame
 
-    tk.Label(order_frame, text="Product ID:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-    id_entry = tk.Entry(order_frame, width=40)  
-    id_entry.grid(row=0, column=0, padx=70, pady=5)
-
-    tk.Label(order_frame, text="Quantity:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
-    quantity_entry = tk.Entry(order_frame, width=40)  
-    quantity_entry.grid(row=1, column=0, padx=70, pady=5)
-
-    tk.Button(order_frame, text="Add Product to Order", command=add_product).grid(row=2, column=0, columnspan=2, pady=10)
-
-    tk.Button(order_frame, text="Submit Order", command=submit_order).grid(row=3, column=0, columnspan=2, pady=10)
-
-    order_listbox = tk.Listbox(order_frame, height=10, width=100)
-    order_listbox.grid(row=4, column=0, columnspan=2, padx=10, pady=5)
-
+    tk.Button(order_list_frame, text="Submit Order", command=submit_order).pack(pady=10)
 # New restock UI
 def new_restock_ui():
     clear_content_area()
-    restock_items = []
+    restock_items = []  # List to store products added to the restock
+
+    # Main frame for the restock page
     restock_frame = tk.Frame(content_frame)
     restock_frame.pack(fill=tk.BOTH, expand=True)
 
-    def add_product():
-        product_id = id_entry.get()
-        quantity = quantity_entry.get()
-        
-        if product_id.isdigit() and quantity.isdigit():
-            quantity = int(quantity)
-            if quantity > 0:
-                result = check_stock(int(product_id))
-                if result:
-                    name, available_quantity = result
-                    restock_items.append((product_id, quantity))
-                    restock_listbox.insert(tk.END, f"ID: {product_id}, Quantity: {quantity}")
-                else:
-                    messagebox.showerror("Error", "Product not found")
+    # Frame for the search bar
+    search_frame = tk.Frame(restock_frame)
+    search_frame.pack(fill=tk.X, padx=10, pady=10)
+
+    # Search criteria dropdown
+    tk.Label(search_frame, text="Search by:").grid(row=0, column=0, padx=5, pady=5)
+    search_criteria = tk.StringVar(value="name")  # Default search criteria
+    search_options = ["id", "name", "category", "brand"]
+    search_dropdown = tk.OptionMenu(search_frame, search_criteria, *search_options)
+    search_dropdown.grid(row=0, column=1, padx=5, pady=5)
+
+    # Search term entry
+    tk.Label(search_frame, text="Search term:").grid(row=0, column=2, padx=5, pady=5)
+    search_term_entry = tk.Entry(search_frame, width=30)
+    search_term_entry.grid(row=0, column=3, padx=5, pady=5)
+
+    # Button to perform the search
+    def perform_search():
+        # Clear previous search results
+        for widget in results_frame.winfo_children():
+            widget.destroy()
+
+        # Get the search criteria and term
+        criteria = search_criteria.get()
+        term = search_term_entry.get()
+
+        if not term:
+            messagebox.showerror("Error", "Please enter a search term.")
+            return
+
+        # Fetch products based on the search criteria
+        products = search_products(criteria, term)
+
+        if not products:
+            tk.Label(results_frame, text="No products found.").pack(pady=10)
+            return
+
+        # Display the search results
+        for i, product in enumerate(products):
+            product_id, name, category, brand, price, quantity = product
+            product_text = f"{name}, Brand: {brand}, Price: {price:.2f}"
+            product_button = tk.Button(results_frame, text=product_text, width=80, anchor="w",
+                                       command=lambda p=product: add_to_restock(p))
+            product_button.pack(pady=2, padx=10, anchor="w")
+
+    tk.Button(search_frame, text="Search", command=perform_search).grid(row=0, column=4, padx=5, pady=5)
+
+    # Frame to display search results
+    results_frame = tk.Frame(restock_frame)
+    results_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    # Function to add a product to the restock
+    def add_to_restock(product):
+        product_id, name, _, _, _, _ = product
+
+        # Open a new window to input quantity
+        quantity_window = tk.Toplevel()
+        quantity_window.title("Add to Restock")
+        quantity_window.geometry("300x150")
+
+        tk.Label(quantity_window, text=f"Product: {name}").pack(pady=10)
+        tk.Label(quantity_window, text="Quantity:").pack(pady=5)
+        quantity_entry = tk.Entry(quantity_window)
+        quantity_entry.pack(pady=5)
+
+        def confirm_quantity():
+            quantity = quantity_entry.get()
+            if quantity.isdigit() and int(quantity) > 0:
+                restock_items.append((product_id, int(quantity)))
+                restock_listbox.insert(tk.END, f"ID: {product_id}, Quantity: {quantity}")
+                quantity_window.destroy()
             else:
-                messagebox.showerror("Error", "Quantity must be greater than zero")
-        else:
-            messagebox.showerror("Error", "Invalid input")
-    
+                messagebox.showerror("Error", "Please enter a valid quantity.")
+
+        tk.Button(quantity_window, text="Add", command=confirm_quantity).pack(pady=10)
+
+    # Frame to display the current restock
+    restock_list_frame = tk.Frame(restock_frame)
+    restock_list_frame.pack(fill=tk.X, padx=10, pady=10)
+
+    tk.Label(restock_list_frame, text="Current Restock:").pack(anchor="w")
+    restock_listbox = tk.Listbox(restock_list_frame, height=10, width=100)
+    restock_listbox.pack(fill=tk.X, pady=5)
+
+    # Button to submit the restock
     def submit_restock():
         for product_id, quantity in restock_items:
-            update_quantity(int(product_id), quantity)  
-        messagebox.showinfo("Success", "Restock has been processed")
-        restock_frame.destroy()
+            update_quantity(int(product_id), quantity)  # Increase the quantity in the database
+        messagebox.showinfo("Success", "Restock has been processed.")
+        restock_frame.destroy()  # Close the current restock frame
 
-    tk.Label(restock_frame, text="Product ID:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-    id_entry = tk.Entry(restock_frame, width=40)  
-    id_entry.grid(row=0, column=0, padx=70, pady=5)
-
-    tk.Label(restock_frame, text="Quantity to Add:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
-    quantity_entry = tk.Entry(restock_frame, width=40)  
-    quantity_entry.grid(row=1, column=0, padx=70, pady=5)
-
-    tk.Button(restock_frame, text="Add Product to Restock", command=add_product).grid(row=2, column=0, columnspan=2, pady=10)
-
-    tk.Button(restock_frame, text="Submit Restock", command=submit_restock).grid(row=3, column=0, columnspan=2, pady=10)
-
-    restock_listbox = tk.Listbox(restock_frame, height=10, width=100)
-    restock_listbox.grid(row=4, column=0, columnspan=2, padx=10, pady=5)
-
+    tk.Button(restock_list_frame, text="Submit Restock", command=submit_restock).pack(pady=10)
 # Function to retrieve paginated products
 def get_paginated_products(order_by, offset, limit):
     conn = sqlite3.connect("/home/agomes/Desktop/FisioMove/inventory.db")
